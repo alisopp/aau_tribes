@@ -25,6 +25,8 @@ dependencies:
   cupertino_icons: ^0.1.2
   amazon_cognito_identity_dart: "^0.0.19"
   shared_preferences: "^0.4.1"
+  flutter_map: any
+  user_location: any
 
 dev_dependencies:
   flutter_test:

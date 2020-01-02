@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'authentification.dart';
 import 'confirmation_page.dart';
 import 'login_page.dart';
-
+import 'test_page.dart';
 
 
 void main() => runApp(MyApp());
@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: HomePage(title: 'Flutter Demo Home Page'),
+      home: MapScreen(),
     );
   }
 }
