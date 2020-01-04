@@ -9,7 +9,10 @@ abstract class MapObject {
 class Castle {
   final int id;
   final String owner;
-  int level;
+  int level = 1;
+  int wood;
+  int stone;
+  int food;
   final LatLng position;
 
   Castle(this.owner, this.position, this.id);

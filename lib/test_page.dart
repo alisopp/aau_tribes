@@ -9,7 +9,7 @@ import 'package:user_location/user_location.dart';
 import 'edge_connector.dart';
 import 'game_objects.dart';
 
-enum MapConnectionState { IsConnecting, Fail, Success }
+enum MapConnectionState { IsConnecting, Fail, Success, PlayerLoggedIn }
 enum PositionState { IsAtResource, NoWhere, IsAtOwnCastle, IsAtAnotherCastle }
 
 class MapScreen extends StatefulWidget {
@@ -29,6 +29,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   PositionState _positionState = PositionState.NoWhere;
   String host = '10.0.0.20';
   int port = 6666;
+  Castle currentVisitedCastle;
   Resource lastVisitedResource;
 
   List<Resource> resources = [];
@@ -38,7 +39,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   List<Marker> markers = [];
   Marker playerMarker;
 
-  bool userPlayerPosition = true;
+  bool usePlayerPosition = true;
 
   //StreamController<LatLng> markerlocationStream;
 
@@ -62,44 +63,19 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
         debugPrint(onData.latitude.toString());
       }); */
       _edgeConnector.sendPlayerLogin(player.name);
-      return _buildMapWidget();
+      return new Scaffold(appBar: new AppBar(title: new Text('Is Connected to the edge')));
     } else if (_connectionState == MapConnectionState.Fail) {
       return new Scaffold(
           appBar: new AppBar(title: new Text('Failed Connecting to edge')));
-    } else {
+    } else if(_connectionState == MapConnectionState.PlayerLoggedIn){
+      return _buildMapWidget();
+    } else{
       return new Scaffold(appBar: new AppBar(title: new Text('unknow error')));
     }
   }
 
-
   Widget _buildMapWidget() {
-    List<MapPlugin> plugins = [];
-    if(userPlayerPosition) {
-      plugins.add(UserLocationPlugin());
-    }
-
-    var map = new FlutterMap(
-      options: new MapOptions(
-          center: new LatLng(51.5, -0.09),
-          zoom: 18.0,
-          plugins: plugins,
-          onTap: (LatLng pos) => onTap(pos)),
-      layers: [
-        new TileLayerOptions(
-            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            subdomains: ['a', 'b', 'c']),
-        new MarkerLayerOptions(markers: markers),
-        UserLocationOptions(
-            context: context,
-            mapController: mapController,
-            markers: markers,
-            onLocationUpdate: (LatLng pos) => onLocationUpdate(pos),
-            updateMapLocationOnPositionChange: true,
-            showMoveToCurrentLocationFloatingActionButton: true,
-            verbose: false),
-      ],
-      mapController: mapController,
-    );
+    var map = _buildGpsMap();
 
     String playerText = player.name +
         "\nwood\t" +
@@ -108,6 +84,17 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
         player.stone.toString() +
         "\nfood\t" +
         player.food.toString();
+    if (_positionState == PositionState.IsAtOwnCastle) {
+      playerText += "\nCastle" +
+          "\nwood\t" +
+          player.castle.wood.toString() +
+          "\nstone\t" +
+          player.castle.stone.toString() +
+          "\nfood\t" +
+          player.castle.food.toString() +
+          "\nlevel\t" +
+          player.castle.level.toString();
+    }
     Widget bottomWidget;
     if (_positionState == PositionState.NoWhere) {
       if (player.castle == null) {
@@ -119,9 +106,15 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
         bottomWidget = new Text('Status: Ok');
       }
     } else if (_positionState == PositionState.IsAtOwnCastle) {
-      bottomWidget = new MaterialButton(
-        onPressed: () => _deliverResources(),
-        child: new Text("Deliver Resources"),
+      bottomWidget = Row(
+        children: <Widget>[
+          new MaterialButton(
+              onPressed: () => _deliverResources(),
+              child: new Text("Deliver Resources")),
+          new MaterialButton(
+              onPressed: () => _upgradeCastle(),
+              child: new Text("Upgrade Castle"))
+        ],
       );
     } else if (_positionState == PositionState.IsAtResource) {
       bottomWidget = new MaterialButton(
@@ -131,6 +124,14 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
     }
 
     return new Scaffold(
+        appBar: AppBar(
+          actions: <Widget>[
+            MaterialButton(
+              onPressed: () => swapMovementMode(),
+              child: Text(usePlayerPosition ? "Use Gps" : "Use Tap"),
+            )
+          ],
+        ),
         body: Center(
           child: Stack(
             children: <Widget>[
@@ -149,10 +150,60 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
         bottomNavigationBar: bottomWidget);
   }
 
+  Widget _buildGpsMap() {
+    if (playerMarker == null) {
+      playerMarker = playerMarker = new Marker(
+          point: new LatLng(0, 0),
+          width: 10,
+          height: 10,
+          builder: (ctx) => new Container(
+                  child: Icon(
+                Icons.favorite,
+                color: Colors.pink,
+                size: 24.0,
+                semanticLabel: 'Text to announce in accessibility modes',
+              )));
+      markers.add(playerMarker);
+    }
+    return FlutterMap(
+      options: new MapOptions(
+          center: new LatLng(51.5, -0.09),
+          zoom: 18.0,
+          plugins: [UserLocationPlugin()],
+          onTap: (LatLng pos) => onTap(pos)),
+      layers: [
+        new TileLayerOptions(
+            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            subdomains: ['a', 'b', 'c']),
+        new MarkerLayerOptions(markers: markers),
+        UserLocationOptions(
+            context: context,
+            mapController: mapController,
+            markers: markers,
+            onLocationUpdate: (LatLng pos) => onLocationUpdate(pos),
+            updateMapLocationOnPositionChange: usePlayerPosition,
+            showMoveToCurrentLocationFloatingActionButton: true,
+            verbose: false),
+      ],
+      mapController: mapController,
+    );
+  }
+
+  void swapMovementMode() {
+    setState(() {
+      usePlayerPosition = !usePlayerPosition;
+    });
+  }
+
   Future<void> dispose() async {
     super.dispose();
     //await markerlocationStream.close();
     _edgeConnector.close();
+  }
+
+  void _upgradeCastle() {
+    _edgeConnector.sendUpgradeCastleMessage(
+        player.name, currentVisitedCastle.id);
   }
 
   void _buildCastle() {
@@ -161,8 +212,10 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   }
 
   void onLocationUpdate(LatLng pos) {
-    lastPosition = pos;
-    _edgeConnector.sendNewPosition(player.name, pos.latitude, pos.longitude);
+    if (usePlayerPosition) {
+      lastPosition = pos;
+      _edgeConnector.sendNewPosition(player.name, pos.latitude, pos.longitude);
+    }
   }
 
   void gatherResource(Resource res) {
@@ -171,23 +224,63 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   }
 
   void onTap(LatLng pos) {
-    // TODO second movement method
+    if (!usePlayerPosition) {
+      playerMarker.point.latitude = pos.latitude;
+      playerMarker.point.longitude = pos.longitude;
+      lastPosition = pos;
+      _edgeConnector.sendNewPosition(player.name, pos.latitude, pos.longitude);
+      setState(() {
+
+      });
+    }
   }
 
-  void _deliverResources() {}
+  void _deliverResources() {
+    _edgeConnector.sendDeliverResourceMessage(
+        player.name, currentVisitedCastle.id);
+  }
 
   @override
   void onArriveAtCastle(ArriveAtCastleMessage message) {
     if (player.castle != null && message.castleId == player.castle.id) {
       setState(() {
         _positionState = PositionState.IsAtOwnCastle;
+        Castle playerCastle = player.castle;
+        playerCastle.food = message.food;
+        playerCastle.wood = message.wood;
+        playerCastle.stone = message.stone;
+        playerCastle.level = message.level;
+        currentVisitedCastle = playerCastle;
       });
     } else {
+      bool containsCastle = false;
+      for (var castle in castles) {
+        if (castle.id == message.castleId) {
+          containsCastle = true;
+          castle.wood = message.wood;
+          castle.food = message.food;
+          castle.stone = message.stone;
+          castle.level = message.level;
+          currentVisitedCastle = castle;
+          break;
+        }
+      }
+
+      if (!containsCastle) {
+        Castle castle = new Castle(message.owner,
+            new LatLng(message.latitude, message.longitude), message.castleId);
+        castle.wood = message.wood;
+        castle.food = message.food;
+        castle.stone = message.stone;
+        castle.level = message.level;
+        castles.add(castle);
+        currentVisitedCastle = castle;
+        _createPlayerCastleMarker(castle);
+      }
       setState(() {
         _positionState = PositionState.IsAtAnotherCastle;
       });
     }
-    print('i am at a castle');
   }
 
   @override
@@ -229,6 +322,9 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   @override
   void onPlayerEdgeLoginSuccess() {
     print('i am connected');
+    setState(() {
+      _connectionState = MapConnectionState.PlayerLoggedIn;
+    });
   }
 
   @override
@@ -253,10 +349,16 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   void onCastleBuilt(BuildCastleFeedbackMessage message) {
     Castle castle = new Castle(player.name,
         new LatLng(message.latitude, message.longitude), message.castleId);
+    castle.wood = message.wood;
+    castle.stone = message.stone;
+    castle.food = message.food;
+    castle.level = message.level;
 
     _createPlayerCastleMarker(castle);
     setState(() {
       player.castle = castle;
+      currentVisitedCastle = castle;
+      _positionState = PositionState.IsAtOwnCastle;
     });
   }
 

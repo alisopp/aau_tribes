@@ -33,7 +33,7 @@ class EdgeConnector {
   Future<void> connect() async {
     try {
       _socket =
-          await Socket.connect(_host, _port, timeout: Duration(seconds: 3))
+          await Socket.connect(_host, _port, timeout: Duration(seconds: 10))
               .then((socket) {
         socket.setOption(SocketOption.tcpNoDelay, true);
         socket.listen((data) {
@@ -60,6 +60,21 @@ class EdgeConnector {
       String playerName, double latitude, double longitude) async {
     NewLocationMessage message =
         new NewLocationMessage(playerName, latitude, longitude);
+
+    await _sendMessage(message);
+  }
+
+  Future<void> sendDeliverResourceMessage(
+      String playerName, int castleId) async {
+    DeliverResourcesToCastleMessage message =
+        new DeliverResourcesToCastleMessage(playerName, castleId);
+
+    await _sendMessage(message);
+  }
+
+  Future<void> sendUpgradeCastleMessage(String playerName, int castleId) async {
+    UpgradeCastleMessage message =
+        new UpgradeCastleMessage(playerName, castleId);
 
     await _sendMessage(message);
   }
@@ -93,6 +108,7 @@ class EdgeConnector {
       debugPrint('misformed message arrived:\n' + response);
       return;
     }
+    print(response);
     String action = map['action'];
     switch (action) {
       case 'AvailableResources':
@@ -108,7 +124,7 @@ class EdgeConnector {
       case 'PlayerLogin':
         _edgeListener.onPlayerEdgeLoginSuccess();
         break;
-      case 'CastleBuild':
+      case 'CastleBuilt':
         _edgeListener.onCastleBuilt(BuildCastleFeedbackMessage.fromJson(map));
         break;
       case 'Nowhere':
@@ -271,16 +287,32 @@ class BuildCastleFeedbackMessage {
   final double latitude;
   final double longitude;
   final bool success;
+  final int wood;
+  final int stone;
+  final int food;
+  final int level;
 
-  BuildCastleFeedbackMessage(this.username, this.latitude, this.longitude,
-      this.success, this.castleId);
+  BuildCastleFeedbackMessage(
+      this.username,
+      this.latitude,
+      this.longitude,
+      this.success,
+      this.castleId,
+      this.wood,
+      this.stone,
+      this.food,
+      this.level);
 
   BuildCastleFeedbackMessage.fromJson(Map<String, dynamic> json)
       : username = json['player'],
         latitude = json['latitude'],
         longitude = json['longitude'],
         success = json['success'],
-        castleId = json['castleId'];
+        castleId = json['castleId'],
+        wood = json['wood'],
+        stone = json['stone'],
+        food = json['food'],
+        level = json['level'];
 
   Map<String, dynamic> toJson() => {
         'action': 'CastleBuilt',
@@ -288,7 +320,11 @@ class BuildCastleFeedbackMessage {
         'latitude': latitude,
         'longitude': longitude,
         'success': success,
-        'castleId': castleId
+        'castleId': castleId,
+        'wood': wood,
+        'stone': stone,
+        'food': food,
+        'level': level
       };
 }
 
@@ -296,15 +332,65 @@ class BuildCastleFeedbackMessage {
 class ArriveAtCastleMessage {
   final String owner;
   final int castleId;
+  final double latitude;
+  final double longitude;
+  final int wood;
+  final int stone;
+  final int food;
+  final int level;
 
-  ArriveAtCastleMessage(this.owner, this.castleId);
+  ArriveAtCastleMessage(this.owner, this.castleId, this.latitude,
+      this.longitude, this.wood, this.stone, this.food, this.level);
 
   ArriveAtCastleMessage.fromJson(Map<String, dynamic> json)
       : owner = json['owner'],
+        castleId = json['castleId'],
+        latitude = json['latitude'],
+        longitude = json['longitude'],
+        wood = json['wood'],
+        stone = json['stone'],
+        food = json['food'],
+        level = json['level'];
+
+  Map<String, dynamic> toJson() => {
+        'action': 'CastleArrived',
+        'owner': owner,
+        'castleId': castleId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'wood': wood,
+        'stone': stone,
+        'food': food,
+        'level': level
+      };
+}
+
+class UpgradeCastleMessage {
+  final String username;
+  final int castleId;
+
+  UpgradeCastleMessage(this.username, this.castleId);
+
+  UpgradeCastleMessage.fromJson(Map<String, dynamic> json)
+      : username = json['player'],
         castleId = json['castleId'];
 
   Map<String, dynamic> toJson() =>
-      {'action': 'CastleArrived', 'owner': owner, 'castleId': castleId};
+      {'action': 'UpgradeCastle', 'player': username, 'castleId': castleId};
+}
+
+class DeliverResourcesToCastleMessage {
+  final String username;
+  final int castleId;
+
+  DeliverResourcesToCastleMessage(this.username, this.castleId);
+
+  DeliverResourcesToCastleMessage.fromJson(Map<String, dynamic> json)
+      : username = json['player'],
+        castleId = json['castleId'];
+
+  Map<String, dynamic> toJson() =>
+      {'action': 'DeliverResources', 'player': username, 'castleId': castleId};
 }
 
 class ArriveNowhereMessage {
