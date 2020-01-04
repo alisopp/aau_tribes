@@ -25,6 +25,26 @@ class MyListener implements EdgeListener {
   void onPlayerEdgeLoginSuccess() {
     // TODO: implement onPlayerEdgeLoginSuccess
   }
+
+  @override
+  void onConnectionFailed() {
+    // TODO: implement onConnectionFailed
+  }
+
+  @override
+  void onResourceOverview(ResourcesOverview message) {
+    // TODO: implement onResourceOverview
+  }
+
+  @override
+  void onCastleBuilt(BuildCastleFeedbackMessage message) {
+    // TODO: implement onCastleBuilt
+  }
+
+  @override
+  void onLeavingCurrentPlace() {
+    // TODO: implement onLeavingCurrentPlace
+  }
 }
 
 void main() {
