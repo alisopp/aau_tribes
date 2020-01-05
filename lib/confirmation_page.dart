@@ -1,6 +1,7 @@
 import 'package:aau_tribes/login_page.dart';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'package:flutter/material.dart';
-import 'package:amazon_cognito_identity_dart/cognito.dart';
+
 import 'authentification.dart';
 
 
@@ -19,7 +20,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   final GlobalKey<FormState> _formKey = new GlobalKey<FormState>();
   String confirmationCode;
   User _user = new User();
-  final userService;
+  final UserService userService;
 
   _submit(BuildContext context) async {
     _formKey.currentState.save();
@@ -53,7 +54,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
             Navigator.push(
               context,
               new MaterialPageRoute(
-                  builder: (context) => new LoginScreen(key:widget.key, email:_user.email)),
+                  builder: (context) => new LoginScreen(key:widget.key, email:_user.email,userPool: userPool)),
             );
           }
         },

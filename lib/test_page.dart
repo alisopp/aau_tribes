@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:aau_tribes/rest_messages.dart';
+import 'package:amazon_cognito_identity_dart_2/sig_v4.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong/latlong.dart';
 import 'package:user_location/user_location.dart';
+import 'package:http/http.dart' as http;
 
+import 'authentification.dart';
+import 'config.dart';
 import 'edge_connector.dart';
 import 'game_objects.dart';
 
@@ -13,31 +18,44 @@ enum MapConnectionState { IsConnecting, Fail, Success, PlayerLoggedIn }
 enum PositionState { IsAtResource, NoWhere, IsAtOwnCastle, IsAtAnotherCastle }
 
 class MapScreen extends StatefulWidget {
-  MapScreen({Key key}) : super(key: key);
+  MapScreen({Key key, this.userService}) : super(key: key);
+
+  final UserService userService;
 
   @override
-  _MapScreenState createState() => new _MapScreenState();
+  _MapScreenState createState() =>
+      new _MapScreenState(userService: this.userService);
 }
 
 class _MapScreenState extends State<MapScreen> implements EdgeListener {
-  // ADD THIS
-  MapController mapController = MapController();
+  _MapScreenState({this.userService});
+
+  // AWS Gate Way API + cognitp
+  final UserService userService;
+  AwsSigV4Client _awsSigV4Client;
+
+  // Game States
   Player player;
-  EdgeConnector _edgeConnector;
+
   LatLng lastPosition;
   MapConnectionState _connectionState = MapConnectionState.IsConnecting;
   PositionState _positionState = PositionState.NoWhere;
+  List<Resource> resources = [];
+  List<Castle> castles = [];
+
+  // Map Markers
+  MapController mapController = MapController();
+  List<Marker> markers = [];
+  Marker playerMarker;
+
+  // Connection to the edge
+  EdgeConnector _edgeConnector;
   String host = '10.0.0.20';
   int port = 6666;
   Castle currentVisitedCastle;
   Resource lastVisitedResource;
 
-  List<Resource> resources = [];
-  List<Castle> castles = [];
-
   // ADD THIS
-  List<Marker> markers = [];
-  Marker playerMarker;
 
   bool usePlayerPosition = true;
 
@@ -47,30 +65,74 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   Widget build(BuildContext context) {
     //TODO get player from aws gateway
     if (player == null) {
-      player = new Player();
-      player.name = 'alex';
+      _getValues(context);
+      return new Scaffold(appBar: new AppBar(title: new Text('Loading...')));
     }
     //Get the current location of marker
-    print("Reconnecting");
+
     if (_connectionState == MapConnectionState.IsConnecting) {
       _edgeConnector = new EdgeConnector(this, host, port);
       _edgeConnector.connect();
       return new Scaffold(appBar: new AppBar(title: new Text('Loading...')));
     } else if (_connectionState == MapConnectionState.Success) {
-      //markerlocationStream = new StreamController();
-      /*markerlocationStream.stream.listen((onData) {
-        debugPrint("hello");
-        debugPrint(onData.latitude.toString());
-      }); */
       _edgeConnector.sendPlayerLogin(player.name);
-      return new Scaffold(appBar: new AppBar(title: new Text('Is Connected to the edge')));
+      return new Scaffold(
+          appBar: new AppBar(title: new Text('Is Connected to the edge')));
     } else if (_connectionState == MapConnectionState.Fail) {
       return new Scaffold(
-          appBar: new AppBar(title: new Text('Failed Connecting to edge')));
-    } else if(_connectionState == MapConnectionState.PlayerLoggedIn){
+          appBar: new AppBar(
+        title: new Text('Failed Connecting to edge'),
+        actions: <Widget>[
+          MaterialButton(
+            onPressed: () => userService.signOut(),
+            child: Text("Logout"),
+          )
+        ],
+      ));
+    } else if (_connectionState == MapConnectionState.PlayerLoggedIn) {
       return _buildMapWidget();
-    } else{
-      return new Scaffold(appBar: new AppBar(title: new Text('unknow error')));
+    } else {
+      return new Scaffold(
+          appBar: new AppBar(title: new Text('unknow error'), actions: <Widget>[
+        MaterialButton(
+          onPressed: () => userService.signOut(),
+          child: Text("Logout"),
+        )
+      ]));
+    }
+  }
+
+  Future<void> _getValues(BuildContext context) async {
+    try {
+      await userService.init();
+      bool _isAuthenticated = await userService.checkAuthenticated();
+      if (_isAuthenticated) {
+        final url = endpoint + "/user";
+        Map<String, String> headers = {
+          "Content-Type": "application/json",
+          "Authorization": userService.getJwtToken(),
+          "Content-Length": "0",
+          "Connection": "keep-alive"
+        };
+        final response = await http.post(url, headers: headers);
+        print(json.decode(response.body));
+        var message =
+            PlayerStatesResponseMessage.fromJson(json.decode(response.body));
+        print(message.edgeHost + " " + message.edgePort.toString());
+        setState(() {
+          player = new Player();
+          player.name = message.playerName;
+          host = message.edgeHost;
+          port = message.edgePort;
+        });
+        // get previous count
+        //_counterService = new CounterService(_awsSigV4Client);
+        //_counter = await _counterService.getCounter();
+      }
+    } catch (e) {
+      print(e);
+      //await userService.signOut();
+      //Navigator.pop(context);
     }
   }
 
@@ -129,6 +191,13 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
             MaterialButton(
               onPressed: () => swapMovementMode(),
               child: Text(usePlayerPosition ? "Use Gps" : "Use Tap"),
+            ),
+            MaterialButton(
+              onPressed: () {
+                userService.signOut();
+                Navigator.pop(context);
+              },
+              child: Text("Logout"),
             )
           ],
         ),
@@ -229,9 +298,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
       playerMarker.point.longitude = pos.longitude;
       lastPosition = pos;
       _edgeConnector.sendNewPosition(player.name, pos.latitude, pos.longitude);
-      setState(() {
-
-      });
+      setState(() {});
     }
   }
 

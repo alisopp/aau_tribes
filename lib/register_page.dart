@@ -1,6 +1,6 @@
 import 'package:aau_tribes/confirmation_page.dart';
 import 'package:flutter/material.dart';
-import 'package:amazon_cognito_identity_dart/cognito.dart';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'authentification.dart';
 
 class SignUpScreen extends StatefulWidget {

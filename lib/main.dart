@@ -1,15 +1,12 @@
 import 'package:aau_tribes/register_page.dart';
-import 'package:amazon_cognito_identity_dart/cognito.dart';
 import 'package:flutter/material.dart';
 import 'authentification.dart';
 import 'confirmation_page.dart';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'login_page.dart';
 import 'test_page.dart';
 
-
 void main() => runApp(MyApp());
-
-
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -29,23 +26,124 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MapScreen(),
+      home: HomePage(title: "Test Demo"),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-HomePage({Key key, this.title}) : super(key: key);
+  HomePage({Key key, this.title}) : super(key: key);
 
-final String title;
+  final String title;
 
-@override
-_HomePageState createState() => new _HomePageState();
+  @override
+  _HomePageState createState() => new _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  final UserService _userService = new UserService(userPool);
+
+  bool _isAuthenticated = false;
+  User _user;
+
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+    return new FutureBuilder(
+        future: _getValues(context),
+        builder: (context, AsyncSnapshot<UserService> snapshot) {
+          if (snapshot.hasData) {
+            if (!_isAuthenticated) {
+              return new Scaffold(
+                appBar: new AppBar(
+                  title: new Text(widget.title),
+                ),
+                body: new Center(
+                  child: new Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      new Container(
+                        padding: new EdgeInsets.only(
+                            left: 20.0, right: 20.0, bottom: 20.0),
+                        width: screenSize.width,
+                        child: new RaisedButton(
+                          child: new Text(
+                            'Sign Up',
+                            style: new TextStyle(color: Colors.white),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              new MaterialPageRoute(
+                                  builder: (context) =>
+                                      new SignUpScreen(userPool: userPool)),
+                            );
+                          },
+                          color: Colors.blue,
+                        ),
+                      ),
+                      new Container(
+                        padding: new EdgeInsets.only(
+                            left: 20.0, right: 20.0, bottom: 20.0),
+                        width: screenSize.width,
+                        child: new RaisedButton(
+                          child: new Text(
+                            'Login',
+                            style: new TextStyle(color: Colors.white),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              new MaterialPageRoute(
+                                  builder: (context) =>
+                                      new LoginScreen(userPool: userPool)),
+                            );
+                          },
+                          color: Colors.blue,
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              );
+            }
+            return new Scaffold(
+              appBar: new AppBar(
+                title: new Text(widget.title),
+              ),
+              body: new Center(
+                child: new Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    new Container(
+                      padding: new EdgeInsets.only(
+                          left: 20.0, right: 20.0, bottom: 20.0),
+                      width: screenSize.width,
+                      child: new RaisedButton(
+                        child: new Text(
+                          'Start Game',
+                          style: new TextStyle(color: Colors.white),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            new MaterialPageRoute(
+                                builder: (context) =>
+                                new MapScreen(userService: _userService)),
+                          );
+                        },
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return new Scaffold(
+              appBar: new AppBar(title: new Text('Loading...')));
+        });
+/*
     final Size screenSize = MediaQuery.of(context).size;
     return new Scaffold(
       appBar: new AppBar(
@@ -57,7 +155,7 @@ class _HomePageState extends State<HomePage> {
           children: <Widget>[
             new Container(
               padding:
-              new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
               width: screenSize.width,
               child: new RaisedButton(
                 child: new Text(
@@ -68,7 +166,8 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     new MaterialPageRoute(
-                        builder: (context) => new SignUpScreen(userPool: userPool)),
+                        builder: (context) =>
+                            new SignUpScreen(userPool: userPool)),
                   );
                 },
                 color: Colors.blue,
@@ -76,7 +175,7 @@ class _HomePageState extends State<HomePage> {
             ),
             new Container(
               padding:
-              new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
               width: screenSize.width,
               child: new RaisedButton(
                 child: new Text(
@@ -87,7 +186,8 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     new MaterialPageRoute(
-                        builder: (context) => new ConfirmationScreen(userPool: userPool)),
+                        builder: (context) =>
+                            new ConfirmationScreen(userPool: userPool)),
                   );
                 },
                 color: Colors.blue,
@@ -95,7 +195,7 @@ class _HomePageState extends State<HomePage> {
             ),
             new Container(
               padding:
-              new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
               width: screenSize.width,
               child: new RaisedButton(
                 child: new Text(
@@ -106,13 +206,14 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     new MaterialPageRoute(
-                        builder: (context) => new LoginScreen(userPool: userPool)),
+                        builder: (context) =>
+                            new LoginScreen(userPool: userPool)),
                   );
                 },
                 color: Colors.blue,
               ),
             ),
-           /* new Container(
+            /* new Container(
               padding:
               new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
               width: screenSize.width,
@@ -134,6 +235,23 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
+    );*/
+  }
+
+  Future<UserService> _getValues(BuildContext context) async {
+    try {
+      await _userService.init();
+      _isAuthenticated = await _userService.checkAuthenticated();
+      if (_isAuthenticated) {
+        // get user attributes from cognito
+        _user = await _userService.getCurrentUser();
+      }
+      return _userService;
+    } on CognitoClientException catch (e) {
+      if (e.code == 'NotAuthorizedException') {
+        await _userService.signOut();
+      }
+      throw e;
+    }
   }
 }

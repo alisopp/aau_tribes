@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:amazon_cognito_identity_dart/cognito.dart';
+
 import 'config.dart';
 
 final userPool = new CognitoUserPool(awsUserPoolId, awsClientId);
@@ -108,14 +109,10 @@ class UserService {
     return user;
   }
 
-  /// Retrieve user credentials -- for use with other AWS services
-  Future<CognitoCredentials> getCredentials() async {
-    if (_cognitoUser == null || _session == null) {
-      return null;
-    }
-    credentials = new CognitoCredentials(identityPoolId, _userPool);
-    await credentials.getAwsCredentials(_session.getIdToken().getJwtToken());
-    return credentials;
+
+
+  String getJwtToken() {
+    return _session.getIdToken().getJwtToken();
   }
 
   /// Login user

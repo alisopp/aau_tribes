@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:aau_tribes/confirmation_page.dart';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'package:flutter/material.dart';
-import 'package:amazon_cognito_identity_dart/cognito.dart';
+
 import 'authentification.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -86,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (context, AsyncSnapshot<UserService> snapshot) {
           if (snapshot.hasData) {
             if (_isAuthenticated) {
-              return widget.gameScreen;
+              Navigator.pop(context);
             }
             final Size screenSize = MediaQuery.of(context).size;
             return new Scaffold(
