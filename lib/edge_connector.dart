@@ -139,8 +139,8 @@ class EdgeConnector {
     await _socket.flush();
   }
 
-  void close() {
-    _socket.close();
+  Future<void> close() async {
+    await _socket.close();
   }
 }
 
