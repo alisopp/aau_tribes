@@ -39,7 +39,7 @@ class MyListener implements EdgeListener {
   }
 
   @override
-  void onPlayerEdgeLoginSuccess() {
+  void onPlayerUpdate(PlayerUpdateMessage message) {
     _isLoggedIn = true;
     player = new Player();
   }
@@ -109,7 +109,7 @@ bool check(MyListener myListener) {
 }
 
 void main() {
-  String host = "localhost";
+  String host = "10.0.0.20";
   int port = 6666;
   MyListener myListener;
   EdgeConnector edgeConnector;
@@ -155,7 +155,7 @@ void main() {
     await edgeConnector.sendNewPosition("alex3", 46.811471, 14.363499);
     await waitWhile(myListener.isAtResource, Duration(milliseconds: 100));
     var msg = myListener.resourceMessage;
-    switch(msg.resourceType) {
+    switch (msg.resourceType) {
       case "wood":
         wood = wood + msg.amount;
         break;
@@ -167,7 +167,8 @@ void main() {
         break;
     }
 
-    await edgeConnector.sendGatherResourceMessage("alex3", msg.resourceType, msg.resourceId, msg.amount);
+    await edgeConnector.sendGatherResourceMessage(
+        "alex3", msg.resourceType, msg.resourceId, msg.amount);
     await waitWhile(myListener.gatheredResource, Duration(milliseconds: 100));
 
     expect(player.wood, wood);
@@ -187,6 +188,5 @@ void main() {
     await edgeConnector.sendNewPosition("alex5", 44.811471, 14.363499);
     await waitWhile(myListener.isNoWhere, Duration(milliseconds: 100));
     await edgeConnector.sendBuildCastleMessage("alex5", 44.811471, 14.363499);
-
   });
 }

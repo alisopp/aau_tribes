@@ -4,7 +4,7 @@ import 'authentification.dart';
 import 'confirmation_page.dart';
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'login_page.dart';
-import 'test_page.dart';
+import 'game_page.dart';
 
 void main() => runApp(MyApp());
 
@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
                             context,
                             new MaterialPageRoute(
                                 builder: (context) =>
-                                new MapScreen(userService: _userService)),
+                                new GameScreen(userService: _userService, user : _user)),
                           );
                         },
                         color: Colors.blue,
@@ -143,99 +143,6 @@ class _HomePageState extends State<HomePage> {
           return new Scaffold(
               appBar: new AppBar(title: new Text('Loading...')));
         });
-/*
-    final Size screenSize = MediaQuery.of(context).size;
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text(widget.title),
-      ),
-      body: new Center(
-        child: new Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            new Container(
-              padding:
-                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
-              width: screenSize.width,
-              child: new RaisedButton(
-                child: new Text(
-                  'Sign Up',
-                  style: new TextStyle(color: Colors.white),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    new MaterialPageRoute(
-                        builder: (context) =>
-                            new SignUpScreen(userPool: userPool)),
-                  );
-                },
-                color: Colors.blue,
-              ),
-            ),
-            new Container(
-              padding:
-                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
-              width: screenSize.width,
-              child: new RaisedButton(
-                child: new Text(
-                  'Confirm Account',
-                  style: new TextStyle(color: Colors.white),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    new MaterialPageRoute(
-                        builder: (context) =>
-                            new ConfirmationScreen(userPool: userPool)),
-                  );
-                },
-                color: Colors.blue,
-              ),
-            ),
-            new Container(
-              padding:
-                  new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
-              width: screenSize.width,
-              child: new RaisedButton(
-                child: new Text(
-                  'Login',
-                  style: new TextStyle(color: Colors.white),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    new MaterialPageRoute(
-                        builder: (context) =>
-                            new LoginScreen(userPool: userPool)),
-                  );
-                },
-                color: Colors.blue,
-              ),
-            ),
-            /* new Container(
-              padding:
-              new EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
-              width: screenSize.width,
-              child: new RaisedButton(
-                child: new Text(
-                  'Secure Counter',
-                  style: new TextStyle(color: Colors.white),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    new MaterialPageRoute(
-                        builder: (context) => new SecureCounterScreen()),
-                  );
-                },
-                color: Colors.blue,
-              ),
-            ), */
-          ],
-        ),
-      ),
-    );*/
   }
 
   Future<UserService> _getValues(BuildContext context) async {

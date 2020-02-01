@@ -17,22 +17,23 @@ import 'game_objects.dart';
 enum MapConnectionState { IsConnecting, Fail, Success, PlayerLoggedIn }
 enum PositionState { IsAtResource, NoWhere, IsAtOwnCastle, IsAtAnotherCastle }
 
-class MapScreen extends StatefulWidget {
-  MapScreen({Key key, this.userService}) : super(key: key);
+class GameScreen extends StatefulWidget {
+  GameScreen({Key key, this.userService, this.user}) : super(key: key);
 
   final UserService userService;
+  final User user;
 
   @override
-  _MapScreenState createState() =>
-      new _MapScreenState(userService: this.userService);
+  _GameScreenState createState() =>
+      new _GameScreenState(userService: this.userService, user: this.user);
 }
 
-class _MapScreenState extends State<MapScreen> implements EdgeListener {
-  _MapScreenState({this.userService});
+class _GameScreenState extends State<GameScreen> implements EdgeListener {
+  _GameScreenState({this.userService, this.user});
 
-  // AWS Gate Way API + cognitp
+  // AWS Gate Way API + cognito
   final UserService userService;
-  AwsSigV4Client _awsSigV4Client;
+  final User user;
 
   // Game States
   Player player;
@@ -52,6 +53,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   EdgeConnector _edgeConnector;
   String host = '10.0.0.20';
   int port = 6666;
+  bool hasEdgeConnection = false;
   Castle currentVisitedCastle;
   Resource lastVisitedResource;
 
@@ -59,12 +61,10 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
 
   bool usePlayerPosition = true;
 
-  //StreamController<LatLng> markerlocationStream;
-
   @override
   Widget build(BuildContext context) {
     //TODO get player from aws gateway
-    if (player == null) {
+    if (!hasEdgeConnection) {
       _getValues(context);
       return new Scaffold(appBar: new AppBar(title: new Text('Loading...')));
     }
@@ -75,7 +75,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
       _edgeConnector.connect();
       return new Scaffold(appBar: new AppBar(title: new Text('Loading...')));
     } else if (_connectionState == MapConnectionState.Success) {
-      _edgeConnector.sendPlayerLogin(player.name);
+      _edgeConnector.sendPlayerLogin(user.name);
       return new Scaffold(
           appBar: new AppBar(title: new Text('Is Connected to the edge')));
     } else if (_connectionState == MapConnectionState.Fail) {
@@ -84,7 +84,10 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
         title: new Text('Failed Connecting to edge'),
         actions: <Widget>[
           MaterialButton(
-            onPressed: () => userService.signOut(),
+            onPressed: () {
+              userService.signOut();
+              Navigator.pop(context);
+            },
             child: Text("Logout"),
           )
         ],
@@ -95,7 +98,10 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
       return new Scaffold(
           appBar: new AppBar(title: new Text('unknow error'), actions: <Widget>[
         MaterialButton(
-          onPressed: () => userService.signOut(),
+          onPressed: () {
+            userService.signOut();
+            Navigator.pop(context);
+          },
           child: Text("Logout"),
         )
       ]));
@@ -120,26 +126,21 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
             PlayerStatesResponseMessage.fromJson(json.decode(response.body));
         print(message.edgeHost + " " + message.edgePort.toString());
         setState(() {
-          player = new Player();
-          player.name = message.playerName;
+          hasEdgeConnection = true;
           host = message.edgeHost;
           port = message.edgePort;
         });
-        // get previous count
-        //_counterService = new CounterService(_awsSigV4Client);
-        //_counter = await _counterService.getCounter();
       }
     } catch (e) {
       print(e);
-      //await userService.signOut();
-      //Navigator.pop(context);
     }
   }
 
   Widget _buildMapWidget() {
     var map = _buildGpsMap();
+    String playerText = "";
 
-    String playerText = player.name +
+    playerText = player.name +
         "\nwood\t" +
         player.wood.toString() +
         "\nstone\t" +
@@ -157,6 +158,7 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
           "\nlevel\t" +
           player.castle.level.toString();
     }
+
     Widget bottomWidget;
     if (_positionState == PositionState.NoWhere) {
       if (player.castle == null) {
@@ -387,11 +389,52 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
   }
 
   @override
-  void onPlayerEdgeLoginSuccess() {
-    print('i am connected');
-    setState(() {
-      _connectionState = MapConnectionState.PlayerLoggedIn;
-    });
+  void onPlayerUpdate(PlayerUpdateMessage message) {
+    if (player == null) {
+      setState(() {
+        _connectionState = MapConnectionState.PlayerLoggedIn;
+        player = new Player();
+        player.name = message.username;
+        if (message.castleLevel > 0) {
+          player.castle = _onCreatePlayerCastle(
+              message.castleLatitude,
+              message.castleLongitude,
+              message.castleId,
+              message.castleLevel,
+              message.wood,
+              message.stone,
+              message.food);
+          _createPlayerCastleMarker(player.castle);
+        }
+      });
+    } else if (player.castle == null) {
+      if (message.castleLevel > 0) {
+        Castle castle = _onCreatePlayerCastle(
+            message.castleLatitude,
+            message.castleLongitude,
+            message.castleId,
+            message.castleLevel,
+            message.wood,
+            message.stone,
+            message.food);
+        _createPlayerCastleMarker(castle);
+        setState(() {
+          player.castle = castle;
+        });
+      }
+    } else {
+      setState(() {
+        var castle = player.castle;
+        // my castle got upgraded
+        if (castle.level < message.castleLevel) {
+          castle.level = message.castleLevel;
+          castle.wood = message.wood;
+          castle.stone = message.stone;
+          castle.food = message.food;
+        }
+        // else there should be message
+      });
+    }
   }
 
   @override
@@ -410,6 +453,18 @@ class _MapScreenState extends State<MapScreen> implements EdgeListener {
       player.wood = message.wood;
     });
     print('on gather resources');
+  }
+
+  Castle _onCreatePlayerCastle(double latitude, double longitude, int castleId,
+      int level, int wood, int stone, int food) {
+    Castle castle =
+        new Castle(player.name, new LatLng(latitude, longitude), castleId);
+    castle.wood = wood;
+    castle.stone = stone;
+    castle.food = food;
+    castle.level = level;
+
+    return castle;
   }
 
   @override

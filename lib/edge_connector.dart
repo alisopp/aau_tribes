@@ -8,7 +8,7 @@ abstract class EdgeListener {
 
   void onConnectionFailed();
 
-  void onPlayerEdgeLoginSuccess();
+  void onPlayerUpdate(PlayerUpdateMessage message);
 
   void onAvailableResources(AvailableResourceMessage message);
 
@@ -121,8 +121,8 @@ class EdgeConnector {
       case 'CastleArrived':
         _edgeListener.onArriveAtCastle(ArriveAtCastleMessage.fromJson(map));
         break;
-      case 'PlayerLogin':
-        _edgeListener.onPlayerEdgeLoginSuccess();
+      case 'GetPlayerInformation':
+        _edgeListener.onPlayerUpdate(PlayerUpdateMessage.fromJson(map));
         break;
       case 'CastleBuilt':
         _edgeListener.onCastleBuilt(BuildCastleFeedbackMessage.fromJson(map));
@@ -159,6 +159,50 @@ class LoginMessage {
   Map<String, dynamic> toJson() => {
         'action': 'PlayerLogin',
         'player': username,
+      };
+}
+
+// from Edge
+class PlayerUpdateMessage {
+  final String username;
+  final int castleLevel;
+  final int castleId;
+  final double castleLatitude;
+  final double castleLongitude;
+  final int wood;
+  final int stone;
+  final int food;
+
+  PlayerUpdateMessage(
+      this.username,
+      this.castleLevel,
+      this.castleLatitude,
+      this.castleLongitude,
+      this.wood,
+      this.stone,
+      this.food,
+      this.castleId);
+
+  PlayerUpdateMessage.fromJson(Map<String, dynamic> json)
+      : username = json['playerName'],
+        castleLevel = json['baseSize'],
+        castleLatitude = json['baseLatitude'].toDouble(),
+        castleLongitude = json['baseLongitude'].toDouble(),
+        wood = json['woodCount'],
+        stone = json['stoneCount'],
+        food = json['foodCount'],
+        castleId = json['baseId'];
+
+  Map<String, dynamic> toJson() => {
+        'action': 'GetPlayerInformation',
+        'playerName': username,
+        'baseSize': castleLevel,
+        'baseLatitude': castleLatitude,
+        'baseLongitude': castleLongitude,
+        'woodCount': wood,
+        'stoneCount': stone,
+        'foodCount': food,
+        'baseId': castleId
       };
 }
 
@@ -304,9 +348,9 @@ class BuildCastleFeedbackMessage {
       this.level);
 
   BuildCastleFeedbackMessage.fromJson(Map<String, dynamic> json)
-      : username = json['player'],
-        latitude = json['latitude'],
-        longitude = json['longitude'],
+      : username = json['playerName'],
+        latitude = json['baseLatitude'],
+        longitude = json['baseLongitude'],
         success = json['success'],
         castleId = json['castleId'],
         wood = json['wood'],
